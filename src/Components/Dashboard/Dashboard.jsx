@@ -173,7 +173,8 @@ const Dashboard = () => {
             // Robust extraction: backend might wrap data in a 'data' property or 'files' might be at root
             const projectData = result?.data || result;
             const files = projectData?.files || result?.files;
-            const sessionId = projectData?.session_id || result?.session_id;
+            // 🆕 Generate synthetic session_id if not available (for legacy projects)
+            const sessionId = projectData?.session_id || result?.session_id || `proj_${projectId}`;
 
             if (result.status && files) {
                 // Navigate to preview with fetched code
@@ -193,7 +194,7 @@ const Dashboard = () => {
                 navigate("/project/preview", {
                     state: {
                         project_id: projectId,
-                        session_id: sessionId || result?.session_id,
+                        session_id: sessionId,
                         project_name: project.project_name
                     }
                 });

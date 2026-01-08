@@ -6,6 +6,7 @@ import { ThemeContext } from "../../ThemeProvider";
 import Cookies from "js-cookie";
 import { gsap } from "gsap";
 import { ChatHistory } from "./ChatHistory";
+import { ProjectAPI } from "../../services/ProjectAPI";
 
 export function ChatPanel({
     inputValue = '',
@@ -385,8 +386,20 @@ export function ChatPanel({
             message: `✅ Changes applied.`
         }]);
 
+        // 🆕 Sync confirmed changes to backend
+        if (propSessionId) {
+            ProjectAPI.syncCode({
+                sessionId: propSessionId,
+                htmlContent: pendingPreview.newHtml
+            }).then(result => {
+                if (result.status) {
+                    console.log('✅ Preview changes synced to backend');
+                }
+            }).catch(err => console.warn('⚠️ Preview sync error:', err));
+        }
+
         setPendingPreview(null);
-    }, [pendingPreview, selectedElementData]);
+    }, [pendingPreview, selectedElementData, propSessionId]);
 
     const handleDiscardPreview = useCallback(() => {
         if (!pendingPreview) return;
@@ -436,6 +449,8 @@ export function ChatPanel({
                 session_id: sessionId,
                 conversation_id: currentConversationId,
                 message,
+                // 🆕 ALWAYS send HTML content for direct modifications
+                html_content: htmlContent || '',
                 // 🆕 Include conversation context for better understanding
                 context: {
                     messages_in_session: chatHistory.length,
@@ -449,10 +464,11 @@ export function ChatPanel({
                 activeElement: activeElement?.tagName,
                 sessionElement: elementSession.element?.tagName,
                 hasActiveElement,
-                messagesSinceSelection: requestBody.context.messages_since_element_selection
+                messagesSinceSelection: requestBody.context.messages_since_element_selection,
+                htmlContentLength: htmlContent?.length || 0
             });
 
-            // 🆕 Always include element if session is active (even for follow-up questions)
+            // 🆕 Include element if session is active (even for follow-up questions)
             if (hasActiveElement) {
                 console.log('🎯 Including element in request:', activeElement.tagName);
                 requestBody.selected_element = {
@@ -470,11 +486,6 @@ export function ChatPanel({
                         isFollowUp: elementSession.questionsAsked > 0
                     }
                 };
-
-                // Send current HTML content for element manipulation
-                if (htmlContent) {
-                    requestBody.html_content = htmlContent;
-                }
 
                 // 🆕 Update questions asked count
                 setElementSession(prev => ({
@@ -502,6 +513,16 @@ export function ChatPanel({
 
             const data = await response.json();
 
+            // 🔍 DEBUG: Log full response to understand what's happening
+            console.log('📥 Chat API Response:', {
+                html_updated: data.html_updated,
+                has_updated_html: !!data.updated_html,
+                updated_html_length: data.updated_html?.length || 0,
+                blueprint_updated: data.blueprint_updated,
+                actions_taken: data.actions_taken,
+                response_preview: data.response?.substring(0, 100)
+            });
+
             if (response.ok && data) {
                 const aiMessage = data.response || data.message || "Done!";
 
@@ -524,6 +545,13 @@ export function ChatPanel({
                 await loadConversations();
 
                 // Handle different update types
+                // 🔍 DEBUG: Check conditions
+                console.log('🔍 HTML Update Check:', {
+                    condition1_html_updated: data.html_updated,
+                    condition2_has_html: !!data.updated_html,
+                    will_update: data.html_updated && data.updated_html
+                });
+
                 if (data.html_updated && data.updated_html) {
                     if (isPreviewMode) {
                         // 🆕 PREVIEW MODE: Apply change but wait for confirmation
@@ -558,6 +586,22 @@ export function ChatPanel({
                         // Direct HTML update from element editing
                         console.log('✨ HTML updated by chatbot, updating preview');
                         onHtmlUpdate?.(data.updated_html);
+
+                        // 🆕 Auto-sync to backend to preserve changes
+                        if (sessionId) {
+                            ProjectAPI.syncCode({
+                                sessionId: sessionId,
+                                htmlContent: data.updated_html
+                            }).then(result => {
+                                if (result.status) {
+                                    console.log('✅ Chatbot changes synced to backend');
+                                } else {
+                                    console.warn('⚠️ Backend sync failed, changes saved locally');
+                                }
+                            }).catch(err => {
+                                console.warn('⚠️ Backend sync error:', err.message);
+                            });
+                        }
                     }
                 } else if (data.blueprint_updated) {
                     // Blueprint was updated, trigger code regeneration

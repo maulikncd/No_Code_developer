@@ -20,8 +20,12 @@ const PropertiesPanel = () => {
     const [bgColor, setBgColor] = useState('#3b82f6');
     const [textColor, setTextColor] = useState('#ffffff');
 
-    // Local state for text editing to prevent cursor jumping
+    // Local states for text editing to prevent cursor jumping/focus loss
     const [localText, setLocalText] = useState('');
+    const [localSrc, setLocalSrc] = useState('');
+    const [localHref, setLocalHref] = useState('');
+    const [localAlt, setLocalAlt] = useState('');
+
     const textUpdateTimeoutRef = useRef(null);
     const blueprintUpdateTimeoutRef = useRef(null);
 
@@ -37,12 +41,15 @@ const PropertiesPanel = () => {
         advanced: false
     });
 
-    // Sync local text with selectedElement when element changes
+    // Sync local states when selectedElement changes
     useEffect(() => {
-        if (selectedElement?.text !== undefined) {
+        if (selectedElement) {
             setLocalText(selectedElement.text || '');
+            setLocalSrc(selectedElement.src || '');
+            setLocalHref(selectedElement.href || '');
+            setLocalAlt(selectedElement.alt || '');
         }
-    }, [selectedElement?.tagName, selectedElement?.id]); // Only sync on element change, not on text change
+    }, [selectedElement?.tagName, selectedElement?.id]); // Only sync on element change, not on property change
 
     // Sync colors when selectedElement changes
     useEffect(() => {
@@ -216,21 +223,27 @@ const PropertiesPanel = () => {
         }
     };
 
-    // Handle text changes with debouncing to prevent cursor jumping
-    const handleTextChange = (newText) => {
-        // Update local state immediately for smooth typing
-        setLocalText(newText);
+    // Handle all text-based attribute changes with debouncing
+    const handleLocalEdit = (field, newValue) => {
+        // 1. Update appropriate local state for immediate feedback
+        if (field === 'text') setLocalText(newValue);
+        else if (field === 'src') setLocalSrc(newValue);
+        else if (field === 'href') setLocalHref(newValue);
+        else if (field === 'alt') setLocalAlt(newValue);
 
-        // Clear previous timeout
+        // 2. Clear previous timeout
         if (textUpdateTimeoutRef.current) {
             clearTimeout(textUpdateTimeoutRef.current);
         }
 
-        // Debounce: Update iframe and state after 300ms of no typing
+        // 3. Debounce: Update global state and iframe after 300ms
         textUpdateTimeoutRef.current = setTimeout(() => {
-            handleAttributeChange('text', newText);
+            handleAttributeChange(field, newValue);
         }, 300);
     };
+
+    // Keep handleTextChange for backward compatibility if needed, but it uses handleLocalEdit now
+    const handleTextChange = (newText) => handleLocalEdit('text', newText);
 
     const handleSave = async () => {
         if (!sessionId) {
@@ -455,72 +468,72 @@ const PropertiesPanel = () => {
 
     const SpacingSection = () => (
         <div className="space-y-4 py-4 border-t border-white/5">
-            <SectionHeader title="Spacing" icon={Box} expanded={sectionsExpanded.spacing} section="spacing" />
+            {SectionHeader({ title: "Spacing", icon: Box, expanded: sectionsExpanded.spacing, section: "spacing" })}
             {sectionsExpanded.spacing && (
                 <div className="space-y-4 px-2">
-                    <PropertyGrid
-                        label="Padding"
-                        options={['p-0', 'p-2', 'p-4', 'p-6', 'p-8', 'p-12']}
-                        currentClass={selectedElement.classes}
-                        regex={/\bp-\d+/g}
-                        onChange={(val) => handleAttributeChange('classes', val)}
-                    />
-                    <PropertyGrid
-                        label="Margin"
-                        options={['m-0', 'm-2', 'm-4', 'm-6', 'm-8', 'm-12']}
-                        currentClass={selectedElement.classes}
-                        regex={/\bm-\d+/g}
-                        onChange={(val) => handleAttributeChange('classes', val)}
-                    />
-                    <PropertyGrid
-                        label="Gap (Flex/Grid)"
-                        options={['gap-0', 'gap-2', 'gap-4', 'gap-8', 'gap-12']}
-                        currentClass={selectedElement.classes}
-                        regex={/\bgap-\d+/g}
-                        onChange={(val) => handleAttributeChange('classes', val)}
-                    />
+                    {PropertyGrid({
+                        label: "Padding",
+                        options: ['p-0', 'p-2', 'p-4', 'p-6', 'p-8', 'p-12'],
+                        currentClass: selectedElement.classes,
+                        regex: /\bp-\d+/g,
+                        onChange: (val) => handleAttributeChange('classes', val)
+                    })}
+                    {PropertyGrid({
+                        label: "Margin",
+                        options: ['m-0', 'm-2', 'm-4', 'm-6', 'm-8', 'm-12'],
+                        currentClass: selectedElement.classes,
+                        regex: /\bm-\d+/g,
+                        onChange: (val) => handleAttributeChange('classes', val)
+                    })}
+                    {PropertyGrid({
+                        label: "Gap (Flex/Grid)",
+                        options: ['gap-0', 'gap-2', 'gap-4', 'gap-8', 'gap-12'],
+                        currentClass: selectedElement.classes,
+                        regex: /\bgap-\d+/g,
+                        onChange: (val) => handleAttributeChange('classes', val)
+                    })}
                 </div>
             )}
         </div>
     );
 
-    const SizeSection = ({ showMinMax = false }) => (
+    const SizeSection = ({ showMinMax = false } = {}) => (
         <div className="space-y-4 py-4 border-t border-white/5">
-            <SectionHeader title="Dimensions" icon={Maximize2} expanded={sectionsExpanded.size} section="size" />
+            {SectionHeader({ title: "Dimensions", icon: Maximize2, expanded: sectionsExpanded.size, section: "size" })}
             {sectionsExpanded.size && (
                 <div className="space-y-4 px-2">
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Width"
-                            options={['w-auto', 'w-full', 'w-fit']}
-                            currentClass={selectedElement.classes}
-                            regex={/\bw-\S+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Height"
-                            options={['h-auto', 'h-full', 'h-fit']}
-                            currentClass={selectedElement.classes}
-                            regex={/\bh-\S+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
+                        {PropertyGrid({
+                            label: "Width",
+                            options: ['w-auto', 'w-full', 'w-fit'],
+                            currentClass: selectedElement.classes,
+                            regex: /\bw-\S+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Height",
+                            options: ['h-auto', 'h-full', 'h-fit'],
+                            currentClass: selectedElement.classes,
+                            regex: /\bh-\S+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
                     </div>
                     {showMinMax && (
                         <div className="grid grid-cols-2 gap-4">
-                            <PropertyGrid
-                                label="Max Width"
-                                options={['max-w-xs', 'max-w-md', 'max-w-full']}
-                                currentClass={selectedElement.classes}
-                                regex={/\bmax-w-\S+/g}
-                                onChange={(val) => handleAttributeChange('classes', val)}
-                            />
-                            <PropertyGrid
-                                label="Aspect Ratio"
-                                options={['aspect-auto', 'aspect-square', 'aspect-video']}
-                                currentClass={selectedElement.classes}
-                                regex={/\baspect-\S+/g}
-                                onChange={(val) => handleAttributeChange('classes', val)}
-                            />
+                            {PropertyGrid({
+                                label: "Max Width",
+                                options: ['max-w-xs', 'max-w-md', 'max-w-full'],
+                                currentClass: selectedElement.classes,
+                                regex: /\bmax-w-\S+/g,
+                                onChange: (val) => handleAttributeChange('classes', val)
+                            })}
+                            {PropertyGrid({
+                                label: "Aspect Ratio",
+                                options: ['aspect-auto', 'aspect-square', 'aspect-video'],
+                                currentClass: selectedElement.classes,
+                                regex: /\baspect-\S+/g,
+                                onChange: (val) => handleAttributeChange('classes', val)
+                            })}
                         </div>
                     )}
                 </div>
@@ -530,68 +543,68 @@ const PropertiesPanel = () => {
 
     const TypographySection = () => (
         <div className="space-y-4 py-4 border-t border-white/5">
-            <SectionHeader title="Typography" icon={Type} expanded={sectionsExpanded.typography} section="typography" />
+            {SectionHeader({ title: "Typography", icon: Type, expanded: sectionsExpanded.typography, section: "typography" })}
             {sectionsExpanded.typography && (
                 <div className="space-y-4 px-2">
-                    <ColorPicker label="Text Color" colorState={textColor} setColorState={setTextColor} colorType="text" />
+                    {ColorPicker({ label: "Text Color", colorState: textColor, setColorState: setTextColor, colorType: "text" })}
 
-                    <PropertyGrid
-                        label="Font Size"
-                        options={['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-4xl']}
-                        currentClass={selectedElement.classes}
-                        regex={/\btext-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl)/g}
-                        onChange={(val) => handleAttributeChange('classes', val)}
-                    />
+                    {PropertyGrid({
+                        label: "Font Size",
+                        options: ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-4xl'],
+                        currentClass: selectedElement.classes,
+                        regex: /\btext-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl)/g,
+                        onChange: (val) => handleAttributeChange('classes', val)
+                    })}
 
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Weight"
-                            options={['font-normal', 'font-medium', 'font-bold']}
-                            currentClass={selectedElement.classes}
-                            regex={/\bfont-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Align"
-                            options={['text-left', 'text-center', 'text-right']}
-                            currentClass={selectedElement.classes}
-                            regex={/\btext-(left|center|right|justify)/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
+                        {PropertyGrid({
+                            label: "Weight",
+                            options: ['font-normal', 'font-medium', 'font-bold'],
+                            currentClass: selectedElement.classes,
+                            regex: /\bfont-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Align",
+                            options: ['text-left', 'text-center', 'text-right'],
+                            currentClass: selectedElement.classes,
+                            regex: /\btext-(left|center|right|justify)/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Transform"
-                            options={['uppercase', 'lowercase', 'capitalize']}
-                            currentClass={selectedElement.classes}
-                            regex={/\b(uppercase|lowercase|capitalize|normal-case)\b/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Decoration"
-                            options={['underline', 'line-through', 'no-underline']}
-                            currentClass={selectedElement.classes}
-                            regex={/\b(underline|line-through|no-underline)\b/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
+                        {PropertyGrid({
+                            label: "Transform",
+                            options: ['uppercase', 'lowercase', 'capitalize'],
+                            currentClass: selectedElement.classes,
+                            regex: /\b(uppercase|lowercase|capitalize|normal-case)\b/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Decoration",
+                            options: ['underline', 'line-through', 'no-underline'],
+                            currentClass: selectedElement.classes,
+                            regex: /\b(underline|line-through|no-underline)\b/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Line Height"
-                            options={['leading-tight', 'leading-normal', 'leading-loose']}
-                            currentClass={selectedElement.classes}
-                            regex={/\bleading-\S+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Letter Spacing"
-                            options={['tracking-tight', 'tracking-normal', 'tracking-wide']}
-                            currentClass={selectedElement.classes}
-                            regex={/\btracking-\S+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
+                        {PropertyGrid({
+                            label: "Line Height",
+                            options: ['leading-tight', 'leading-normal', 'leading-loose'],
+                            currentClass: selectedElement.classes,
+                            regex: /\bleading-\S+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Letter Spacing",
+                            options: ['tracking-tight', 'tracking-normal', 'tracking-wide'],
+                            currentClass: selectedElement.classes,
+                            regex: /\btracking-\S+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
                     </div>
                 </div>
             )}
@@ -600,43 +613,43 @@ const PropertiesPanel = () => {
 
     const VisualSection = () => (
         <div className="space-y-4 py-4 border-t border-white/5">
-            <SectionHeader title="Visuals" icon={Palette} expanded={sectionsExpanded.visuals} section="visuals" />
+            {SectionHeader({ title: "Visuals", icon: Palette, expanded: sectionsExpanded.visuals, section: "visuals" })}
             {sectionsExpanded.visuals && (
                 <div className="space-y-4 px-2">
-                    <ColorPicker label="Background" colorState={bgColor} setColorState={setBgColor} colorType="bg" />
+                    {ColorPicker({ label: "Background", colorState: bgColor, setColorState: setBgColor, colorType: "bg" })}
 
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Radius"
-                            options={['rounded-none', 'rounded-lg', 'rounded-3xl', 'rounded-full']}
-                            currentClass={selectedElement.classes}
-                            regex={/\brounded\S*/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Shadow"
-                            options={['shadow-none', 'shadow', 'shadow-lg', 'shadow-2xl']}
-                            currentClass={selectedElement.classes}
-                            regex={/\bshadow\S*/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
+                        {PropertyGrid({
+                            label: "Radius",
+                            options: ['rounded-none', 'rounded-lg', 'rounded-3xl', 'rounded-full'],
+                            currentClass: selectedElement.classes,
+                            regex: /\brounded\S*/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Shadow",
+                            options: ['shadow-none', 'shadow', 'shadow-lg', 'shadow-2xl'],
+                            currentClass: selectedElement.classes,
+                            regex: /\bshadow\S*/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Opacity"
-                            options={['opacity-100', 'opacity-75', 'opacity-50', 'opacity-25']}
-                            currentClass={selectedElement.classes}
-                            regex={/\bopacity-\d+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Border"
-                            options={['border-0', 'border', 'border-2', 'border-4']}
-                            currentClass={selectedElement.classes}
-                            regex={/\bborder-\d+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
+                        {PropertyGrid({
+                            label: "Opacity",
+                            options: ['opacity-100', 'opacity-75', 'opacity-50', 'opacity-25'],
+                            currentClass: selectedElement.classes,
+                            regex: /\bopacity-\d+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Border",
+                            options: ['border-0', 'border', 'border-2', 'border-4'],
+                            currentClass: selectedElement.classes,
+                            regex: /\bborder-\d+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
                     </div>
                 </div>
             )}
@@ -645,32 +658,32 @@ const PropertiesPanel = () => {
 
     const InteractionSection = () => (
         <div className="space-y-4 py-4 border-t border-white/5">
-            <SectionHeader title="Interactions" icon={MousePointer} expanded={sectionsExpanded.interactions} section="interactions" />
+            {SectionHeader({ title: "Interactions", icon: MousePointer, expanded: sectionsExpanded.interactions, section: "interactions" })}
             {sectionsExpanded.interactions && (
                 <div className="space-y-4 px-2">
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Cursor"
-                            options={['cursor-auto', 'cursor-pointer', 'cursor-move']}
-                            currentClass={selectedElement.classes}
-                            regex={/\bcursor-\S+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Transition"
-                            options={['transition-none', 'transition-all', 'transition-colors']}
-                            currentClass={selectedElement.classes}
-                            regex={/\btransition\S+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
+                        {PropertyGrid({
+                            label: "Cursor",
+                            options: ['cursor-auto', 'cursor-pointer', 'cursor-move'],
+                            currentClass: selectedElement.classes,
+                            regex: /\bcursor-\S+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Transition",
+                            options: ['transition-none', 'transition-all', 'transition-colors'],
+                            currentClass: selectedElement.classes,
+                            regex: /\btransition\S+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
                     </div>
-                    <PropertyGrid
-                        label="Hover Effect (Scale)"
-                        options={['hover:scale-100', 'hover:scale-105', 'hover:scale-110', 'hover:scale-125']}
-                        currentClass={selectedElement.classes}
-                        regex={/\bhover:scale-\d+/g}
-                        onChange={(val) => handleAttributeChange('classes', val)}
-                    />
+                    {PropertyGrid({
+                        label: "Hover Effect (Scale)",
+                        options: ['hover:scale-100', 'hover:scale-105', 'hover:scale-110', 'hover:scale-125'],
+                        currentClass: selectedElement.classes,
+                        regex: /\bhover:scale-\d+/g,
+                        onChange: (val) => handleAttributeChange('classes', val)
+                    })}
                 </div>
             )}
         </div>
@@ -678,53 +691,53 @@ const PropertiesPanel = () => {
 
     const LayoutAdvancedSection = () => (
         <div className="space-y-4 py-4 border-t border-white/5">
-            <SectionHeader title="Layout" icon={Layout} expanded={sectionsExpanded.layout} section="layout" />
+            {SectionHeader({ title: "Layout", icon: Layout, expanded: sectionsExpanded.layout, section: "layout" })}
             {sectionsExpanded.layout && (
                 <div className="space-y-4 px-2">
-                    <PropertyGrid
-                        label="Display"
-                        options={['block', 'flex', 'grid', 'hidden']}
-                        currentClass={selectedElement.classes}
-                        regex={/\b(block|flex|grid|inline-block|hidden)\b/g}
-                        onChange={(val) => handleAttributeChange('classes', val)}
-                    />
+                    {PropertyGrid({
+                        label: "Display",
+                        options: ['block', 'flex', 'grid', 'hidden'],
+                        currentClass: selectedElement.classes,
+                        regex: /\b(block|flex|grid|inline-block|hidden)\b/g,
+                        onChange: (val) => handleAttributeChange('classes', val)
+                    })}
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Direction"
-                            options={['row', 'col']}
-                            prefix="flex-"
-                            currentClass={selectedElement.classes}
-                            regex={/\bflex-(row|col)\S*/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Justify"
-                            options={['start', 'center', 'between']}
-                            prefix="justify-"
-                            currentClass={selectedElement.classes}
-                            regex={/\bjustify-\S+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
+                        {PropertyGrid({
+                            label: "Direction",
+                            options: ['row', 'col'],
+                            prefix: "flex-",
+                            currentClass: selectedElement.classes,
+                            regex: /\bflex-(row|col)\S*/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Justify",
+                            options: ['start', 'center', 'between'],
+                            prefix: "justify-",
+                            currentClass: selectedElement.classes,
+                            regex: /\bjustify-\S+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <PropertyGrid
-                            label="Align"
-                            options={['start', 'center', 'stretch']}
-                            prefix="items-"
-                            currentClass={selectedElement.classes}
-                            regex={/\bitems-\S+/g}
-                            onChange={(val) => handleAttributeChange('classes', val)}
-                        />
-                        <PropertyGrid
-                            label="Position"
-                            options={['rel', 'abs', 'fix']}
-                            currentClass={selectedElement.classes}
-                            regex={/\b(static|relative|absolute|fixed|sticky)\b/g}
-                            onChange={(val) => {
+                        {PropertyGrid({
+                            label: "Align",
+                            options: ['start', 'center', 'stretch'],
+                            prefix: "items-",
+                            currentClass: selectedElement.classes,
+                            regex: /\bitems-\S+/g,
+                            onChange: (val) => handleAttributeChange('classes', val)
+                        })}
+                        {PropertyGrid({
+                            label: "Position",
+                            options: ['rel', 'abs', 'fix'],
+                            currentClass: selectedElement.classes,
+                            regex: /\b(static|relative|absolute|fixed|sticky)\b/g,
+                            onChange: (val) => {
                                 const map = { 'rel': 'relative', 'abs': 'absolute', 'fix': 'fixed' };
                                 handleAttributeChange('classes', val.replace(/\b(rel|abs|fix)\b/g, m => map[m] || m));
-                            }}
-                        />
+                            }
+                        })}
                     </div>
                 </div>
             )}
@@ -739,15 +752,34 @@ const PropertiesPanel = () => {
             <div className="p-3 rounded-xl space-y-3 bg-white/5 border border-white/5">
                 <label className={labelClass}>Source & Alt</label>
                 <div className="space-y-2">
-                    <input type="text" className={inputClass} value={val(selectedElement.src)} onChange={(e) => handleAttributeChange('src', e.target.value)} placeholder="Image URL" />
-                    <input type="text" className={inputClass} value={val(selectedElement.alt)} onChange={(e) => handleAttributeChange('alt', e.target.value)} placeholder="Alt text" />
+                    <input
+                        type="text"
+                        className={inputClass}
+                        value={localSrc}
+                        onChange={(e) => handleLocalEdit('src', e.target.value)}
+                        placeholder="Image URL"
+                    />
+                    <input
+                        type="text"
+                        className={inputClass}
+                        value={localAlt}
+                        onChange={(e) => handleLocalEdit('alt', e.target.value)}
+                        placeholder="Alt text"
+                    />
                 </div>
             </div>
 
             <SizeSection showMinMax />
 
             <div className="p-3 bg-white/5 rounded-xl space-y-4 border border-white/5">
-                <PropertyGrid label="Fitting" options={['contain', 'cover', 'fill']} prefix="object-" currentClass={selectedElement.classes} regex={/\bobject-(contain|cover|fill|none|scale-down)\b/g} onChange={(val) => handleAttributeChange('classes', val)} />
+                {PropertyGrid({
+                    label: "Fitting",
+                    options: ['contain', 'cover', 'fill'],
+                    prefix: "object-",
+                    currentClass: selectedElement.classes,
+                    regex: /\bobject-(contain|cover|fill|none|scale-down)\b/g,
+                    onChange: (val) => handleAttributeChange('classes', val)
+                })}
                 <div className="space-y-2">
                     <label className={labelClass}>Loading Strategy</label>
                     <div className="grid grid-cols-2 gap-2">
@@ -757,8 +789,8 @@ const PropertiesPanel = () => {
                 </div>
             </div>
 
-            <VisualSection />
-            <InteractionSection />
+            {VisualSection()}
+            {InteractionSection()}
         </div>
     );
 
@@ -768,11 +800,23 @@ const PropertiesPanel = () => {
             <div className="p-3 rounded-xl space-y-4 bg-white/5 border border-white/5">
                 <div className="space-y-2">
                     <label className={labelClass}>Destination (URL)</label>
-                    <input type="text" className={inputClass} value={val(selectedElement.href)} onChange={(e) => handleAttributeChange('href', e.target.value)} placeholder="https://..." />
+                    <input
+                        type="text"
+                        className={inputClass}
+                        value={localHref}
+                        onChange={(e) => handleLocalEdit('href', e.target.value)}
+                        placeholder="https://..."
+                    />
                 </div>
                 <div className="space-y-2">
                     <label className={labelClass}>Display Text</label>
-                    <input type="text" className={inputClass} value={val(selectedElement.text)} onChange={(e) => handleAttributeChange('text', e.target.value)} placeholder="Link Text" />
+                    <input
+                        type="text"
+                        className={inputClass}
+                        value={localText}
+                        onChange={(e) => handleLocalEdit('text', e.target.value)}
+                        placeholder="Link Text"
+                    />
                 </div>
                 <div className="space-y-2">
                     <label className={labelClass}>Behavior</label>
@@ -782,11 +826,11 @@ const PropertiesPanel = () => {
                     </div>
                 </div>
             </div>
-            <TypographySection />
-            <SizeSection />
-            <SpacingSection />
-            <VisualSection />
-            <InteractionSection />
+            {TypographySection()}
+            {SizeSection({})}
+            {SpacingSection()}
+            {VisualSection()}
+            {InteractionSection()}
         </div>
     );
 
@@ -796,7 +840,13 @@ const PropertiesPanel = () => {
             <div className="p-3 rounded-xl space-y-4 bg-white/5 border border-white/5">
                 <div className="space-y-2">
                     <label className={labelClass}>Button Label</label>
-                    <input type="text" className={inputClass} value={val(selectedElement.text)} onChange={(e) => handleAttributeChange('text', e.target.value)} placeholder="Click Me" />
+                    <input
+                        type="text"
+                        className={inputClass}
+                        value={localText}
+                        onChange={(e) => handleLocalEdit('text', e.target.value)}
+                        placeholder="Click Me"
+                    />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -815,22 +865,22 @@ const PropertiesPanel = () => {
                 </div>
             </div>
 
-            <TypographySection />
-            <VisualSection />
-            <SpacingSection />
-            <SizeSection />
-            <InteractionSection />
+            {TypographySection()}
+            {VisualSection()}
+            {SpacingSection()}
+            {SizeSection()}
+            {InteractionSection()}
         </div>
     );
 
     // CONTAINER Panel
     const ContainerPanel = () => (
         <div className="space-y-4">
-            <LayoutAdvancedSection />
-            <SpacingSection />
-            <SizeSection showMinMax />
-            <VisualSection />
-            <InteractionSection />
+            {LayoutAdvancedSection()}
+            {SpacingSection()}
+            {SizeSection({ showMinMax: true })}
+            {VisualSection()}
+            {InteractionSection()}
         </div>
     );
 
@@ -847,11 +897,11 @@ const PropertiesPanel = () => {
                 />
             </div>
 
-            <TypographySection />
-            <SpacingSection />
-            <SizeSection />
-            <VisualSection />
-            <InteractionSection />
+            {TypographySection()}
+            {SpacingSection()}
+            {SizeSection()}
+            {VisualSection()}
+            {InteractionSection()}
         </div>
     );
 
@@ -861,31 +911,37 @@ const PropertiesPanel = () => {
             <div className="p-3 rounded-xl space-y-4 bg-white/5 border border-white/5">
                 <div className="space-y-2">
                     <label className={labelClass}>Inner Text / HTML</label>
-                    <textarea className={`${inputClass} min-h-[80px]`} value={val(selectedElement.text)} onChange={(e) => handleAttributeChange('text', e.target.value)} />
+                    <textarea
+                        className={`${inputClass} min-h-[80px]`}
+                        value={localText}
+                        onChange={(e) => handleLocalEdit('text', e.target.value)}
+                    />
                 </div>
                 <div className="space-y-2">
                     <label className={labelClass}>Tailwind Classes</label>
                     <textarea className={`${inputClass} min-h-[60px] font-mono text-xs text-blue-400`} value={val(selectedElement.classes)} onChange={(e) => handleAttributeChange('classes', e.target.value)} />
                 </div>
             </div>
-            <VisualSection />
-            <SpacingSection />
-            <InteractionSection />
+            {VisualSection()}
+            {SpacingSection()}
+            {InteractionSection()}
         </div>
     );
 
-    // Render Mapping
+    // Render element panel based on detected type
     const renderElementPanel = () => {
+        if (!selectedElement) return null;
+
         switch (elementType) {
-            case 'image': return <ImagePanel />;
-            case 'link': return <LinkPanel />;
-            case 'button': return <ButtonPanel />;
+            case 'image': return ImagePanel();
+            case 'link': return LinkPanel();
+            case 'button': return ButtonPanel();
             case 'heading':
             case 'text':
             case 'list':
-            case 'listItem': return <TextPanel />;
-            case 'container': return <ContainerPanel />;
-            default: return <GenericPanel />;
+            case 'listItem': return TextPanel();
+            case 'container': return ContainerPanel();
+            default: return GenericPanel();
         }
     };
 

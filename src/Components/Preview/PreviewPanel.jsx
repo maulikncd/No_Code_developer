@@ -858,10 +858,25 @@ ${shouldInjectScript ? interactionScript : ""}
                 return;
               }
 
-              // 2. Fallback: If blueprint was updated, regenerate code via API
+              // 2. Blueprint updates - ONLY regenerate for MAJOR changes
+              // Minor changes (text, color, style edits) are handled via direct HTML updates
               if (data.blueprint_updated) {
-                console.log('🔄 Blueprint updated by Chatbot, refreshing code from DB...');
-                await generateWebsite(true);
+                const actionsTaken = data.actions_taken || [];
+                const hasMajorChange = actionsTaken.some(action =>
+                  action.type === 'add' ||
+                  action.type === 'blueprint_add' ||
+                  action.type === 'remove' ||
+                  action.type === 'blueprint_remove' ||
+                  action.type === 'reorder'
+                );
+
+                if (hasMajorChange) {
+                  console.log('🔄 Major blueprint change detected, regenerating code...');
+                  await generateWebsite(true);
+                } else {
+                  // Minor blueprint edit (text/style) - don't regenerate, preserve current HTML
+                  console.log('✏️ Minor blueprint edit - keeping current HTML (no regeneration)');
+                }
               }
             }}
           />
@@ -954,7 +969,10 @@ ${shouldInjectScript ? interactionScript : ""}
 /* ---------------- WRAPPER ---------------- */
 export default function PreviewPanelWrapper() {
   const location = useLocation();
-  const sessionId = location.state?.session_id || 'default';
+  // 🆕 Generate proper session_id: prefer from route, then project-based, then generate unique
+  const projectId = location.state?.project_id;
+  const sessionId = location.state?.session_id ||
+    (projectId ? `proj_${projectId}` : `sess_${Date.now()}`);
 
   return (
     <EditorProvider key={sessionId} sessionId={sessionId}>

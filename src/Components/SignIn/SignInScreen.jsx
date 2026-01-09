@@ -81,12 +81,19 @@ const SignInScreen = ({ setStep }) => {
                 throw new Error(data?.message || "Login failed");
             }
 
-            Cookies.set("access_token", data.data.access_token);
-            Cookies.set("refresh_token", data.data.refresh_token);
-            Cookies.set("user_id", data.data.user_id);
-            Cookies.set("email", data.data.email);
+            // Use secure cookies only on HTTPS (production/server)
+            const isSecure = window.location.protocol === 'https:';
+            const cookieOptions = {
+                secure: isSecure,
+                sameSite: 'lax',
+            };
+
+            Cookies.set("access_token", data.data.access_token, { ...cookieOptions, expires: 1 });
+            Cookies.set("refresh_token", data.data.refresh_token, { ...cookieOptions, expires: 7 });
+            Cookies.set("user_id", data.data.user_id, cookieOptions);
+            Cookies.set("email", data.data.email, cookieOptions);
             if (data.data.username) {
-                Cookies.set("username", data.data.username);
+                Cookies.set("username", data.data.username, cookieOptions);
             }
 
             navigate("/dashboard", {
@@ -142,9 +149,18 @@ const SignInScreen = ({ setStep }) => {
                 throw new Error(data?.message || "Google login failed");
             }
 
-            Cookies.set("access_token", data.data.access_token);
-            Cookies.set("refresh_token", data.data.refresh_token);
-            Cookies.set("username", data.data.username || userInfo.name);
+            // Use secure cookies only on HTTPS (production/server)
+            const isSecure = window.location.protocol === 'https:';
+            const cookieOptions = {
+                secure: isSecure,
+                sameSite: 'lax',
+            };
+
+            Cookies.set("access_token", data.data.access_token, { ...cookieOptions, expires: 1 });
+            Cookies.set("refresh_token", data.data.refresh_token, { ...cookieOptions, expires: 7 });
+            Cookies.set("user_id", data.data.user_id, cookieOptions);
+            Cookies.set("email", data.data.email, cookieOptions);
+            Cookies.set("username", data.data.username || userInfo.name, cookieOptions);
 
             navigate("/dashboard", {
                 state: {

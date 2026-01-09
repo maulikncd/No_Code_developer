@@ -118,6 +118,11 @@ const SignOtp = ({ email: propEmail }) => {
         }
     };
 
+
+    const handleCloseAlert = React.useCallback(() => {
+        setAlert(prev => ({ ...prev, open: false }));
+    }, []);
+
     return (
         <>
             <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-12">
@@ -205,7 +210,7 @@ const SignOtp = ({ email: propEmail }) => {
                 message={alert.message}
                 severity={alert.severity}
                 title={alert.title}
-                onClose={() => setAlert(prev => ({ ...prev, open: false }))}
+                onClose={handleCloseAlert}
             />
         </>
     );

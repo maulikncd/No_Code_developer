@@ -443,9 +443,18 @@ const SignUp = ({ setStep, setEmail }) => {
                 throw new Error(data?.message || "Google login failed");
             }
 
-            Cookies.set("access_token", data.data.access_token);
-            Cookies.set("refresh_token", data.data.refresh_token);
-            Cookies.set("username", data.data.username || userInfo.name);
+            // Use secure cookies only on HTTPS (production/server)
+            const isSecure = window.location.protocol === 'https:';
+            const cookieOptions = {
+                secure: isSecure,
+                sameSite: 'lax',
+            };
+
+            Cookies.set("access_token", data.data.access_token, { ...cookieOptions, expires: 1 });
+            Cookies.set("refresh_token", data.data.refresh_token, { ...cookieOptions, expires: 7 });
+            Cookies.set("user_id", data.data.user_id, cookieOptions);
+            Cookies.set("email", data.data.email, cookieOptions);
+            Cookies.set("username", data.data.username || userInfo.name, cookieOptions);
 
             navigate("/dashboard", {
                 state: {

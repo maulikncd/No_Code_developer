@@ -93,11 +93,18 @@ const SignOtp = ({ email: propEmail }) => {
                 return;
             }
 
-            Cookies.set("access_token", payload.data.access_token, { expires: 1, secure: true, sameSite: "strict" });
-            Cookies.set("refresh_token", payload.data.refresh_token, { expires: 7, secure: true, sameSite: "strict" });
-            Cookies.set("user_id", payload.data.user_id);
-            Cookies.set("email", payload.data.email);
-            if (payload.data.username) Cookies.set("username", payload.data.username);
+            // Use secure cookies only on HTTPS (production/server)
+            const isSecure = window.location.protocol === 'https:';
+            const cookieOptions = {
+                secure: isSecure,
+                sameSite: 'lax', // Changed from 'strict' to 'lax' for better redirect compatibility
+            };
+
+            Cookies.set("access_token", payload.data.access_token, { ...cookieOptions, expires: 1 });
+            Cookies.set("refresh_token", payload.data.refresh_token, { ...cookieOptions, expires: 7 });
+            Cookies.set("user_id", payload.data.user_id, cookieOptions);
+            Cookies.set("email", payload.data.email, cookieOptions);
+            if (payload.data.username) Cookies.set("username", payload.data.username, cookieOptions);
 
             showAlert("OTP verified successfully. Welcome!", "success", "Verified");
 
